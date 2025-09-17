@@ -44,6 +44,7 @@ jobs:
             echo "ENV_NAME=staging" >> $GITHUB_ENV
             echo "ECR_REPO=nest-app-staging" >> $GITHUB_ENV
             echo "IMAGE_TAG=staging" >> $GITHUB_ENV
+          fi
 
       # 5️⃣ Build Docker image
       - name: Build Docker image
