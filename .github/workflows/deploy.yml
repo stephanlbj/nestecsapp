@@ -1,0 +1,67 @@
+name: CI/CD NestJS → AWS ECR
+
+on:
+  push:
+    branches:
+      - main # prod
+      - pre-prod # pré-production
+      - develop # staging
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout du code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2️⃣ Configurer AWS CLI
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # 3️⃣ Login ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # 4️⃣ Déterminer l'environnement et le repo
+      - name: Set environment variables
+        run: |
+          if [ "${GITHUB_REF_NAME}" == "main" ]; then
+            echo "ENV_NAME=prod" >> $GITHUB_ENV
+            echo "ECR_REPO=nest-app-prod" >> $GITHUB_ENV
+            echo "IMAGE_TAG=latest" >> $GITHUB_ENV
+          elif [ "${GITHUB_REF_NAME}" == "pre-prod" ]; then
+            echo "ENV_NAME=pre-prod" >> $GITHUB_ENV
+            echo "ECR_REPO=nest-app-preprod" >> $GITHUB_ENV
+            echo "IMAGE_TAG=preprod" >> $GITHUB_ENV
+          else
+            echo "ENV_NAME=staging" >> $GITHUB_ENV
+            echo "ECR_REPO=nest-app-staging" >> $GITHUB_ENV
+            echo "IMAGE_TAG=staging" >> $GITHUB_ENV
+
+      # 5️⃣ Build Docker image
+      - name: Build Docker image
+        run: |
+          docker build --target prod -t $ECR_REPO:${GITHUB_SHA} .
+
+      # 6️⃣ Tag Docker images pour ECR
+      - name: Tag Docker images for ECR
+        run: |
+          ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
+          REGION=${{ secrets.AWS_REGION }}
+          docker tag $ECR_REPO:${GITHUB_SHA} $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$ECR_REPO:${GITHUB_SHA}
+          docker tag $ECR_REPO:${GITHUB_SHA} $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+
+      # 7️⃣ Push Docker images sur ECR
+      - name: Push Docker images to ECR
+        run: |
+          ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
+          REGION=${{ secrets.AWS_REGION }}
+          docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$ECR_REPO:${GITHUB_SHA}
+          docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
