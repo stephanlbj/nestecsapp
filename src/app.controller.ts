@@ -12,7 +12,7 @@ export class AppController {
     return this.appService.getUsers();
   }
 
-  // GET /users/:id → retourne un utilisateur par ID
+  // GET /users/:id → retourne un utilisateur par ID.
   @Get(':id')
   getUserById(@Param('id') id: string): User {
     return this.appService.getUserById(Number(id));
